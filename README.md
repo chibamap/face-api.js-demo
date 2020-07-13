@@ -1,5 +1,9 @@
 # face-api.js-demo
 
+[You Tubeのこの動画](https://youtu.be/CVClHLwv-4I)に触発されて書いてみました。
+動画ではフルスクラッチのHTMLとjsでデモされてますが、ホットリロード使いたいだけのためにNuxtjsで実装してます。
+本当はNuxtjsである必要は全くありません。
+
 ## Build Setup
 
 ```bash
