@@ -1,23 +1,34 @@
 <template lang="pug">
   div.container
-    video(ref="video" width="720" height="560" autoplay muted)
+    video(ref="video" @play="onVideoPlay" width="720" height="560" autoplay muted)
+    canvas(ref="canvas" width="720" height="560")
 </template>
 
 <script>
 import * as faceapi from 'face-api.js'
 
 const MODEL_URL = '/models'
+const interval = 500;
+
+let prevDetections = null
+  , notDetectedCount = 0
 
 export default {
   data: () => {
     return {
       videoSize : null,
-      canvas: null
     }
   },
   mounted() {
-    this.$refs.video.addEventListener('play', this.onVideoPlay);
-    this.loadModels().then(this.askUserToStart).then(this.startVideo);
+    this.videoSize = {
+      width: this.$refs.video.width,
+      height: this.$refs.video.height
+    };
+  },
+  fetch() {
+    return this.loadModels()
+      .then(this.askUserToStart)
+      .then(this.startVideo);
   },
   methods: {
     loadModels() {
@@ -45,31 +56,81 @@ export default {
       )
     },
     onVideoPlay() {
-      console.log('on video play');
-      const videoSize = {
-        width: this.$refs.video.width,
-        height: this.$refs.video.height
-      };
-      const canvas = faceapi.createCanvasFromMedia(this.$refs.video);
-      this.$el.append(canvas);
-      faceapi.matchDimensions(canvas, videoSize);
-
-      setInterval(async () => {
-        const detections = await faceapi.detectAllFaces(
+      const canvas = this.$refs.canvas;
+      faceapi.matchDimensions(canvas, this.videoSize);
+      setInterval(this.faceDetect, interval);
+    },
+    async faceDetect() {
+      let detections = null;
+      try {
+        detections = await faceapi.detectAllFaces(
             this.$refs.video,
-            new faceapi.TinyFaceDetectorOptions()
-        )
-        .withFaceLandmarks()
-        .withFaceExpressions();
+            new faceapi.TinyFaceDetectorOptions())
+          .withFaceExpressions();
 
-        const resizedDetections = faceapi.resizeResults(detections, videoSize);
-        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-        faceapi.draw.drawDetections(canvas, resizedDetections);
-        const minProbability = 0.05;
-        faceapi.draw.drawFaceExpressions(canvas, resizedDetections, minProbability);
-      }, 100);
+      } catch (e) {
+        console.log(e);
+      }
+
+      if (!detections || !detections.length) {
+        console.log('not detected');
+        notDetectedCount ++;
+        if (5000 < interval * notDetectedCount) {
+          this.clearCanvas();
+        }
+        return;
+      }
+      this.renderDetection(detections);
+
+    },
+    renderDetection(detections) {
+      const canvas = this.$refs.canvas;
+      const resizedDetections = faceapi.resizeResults(detections, this.videoSize);
+      this.clearCanvas();
+      resizedDetections.map((detection) => {
+        console.log(detection);
+        this.renderExpression(detection);
+      });
+    },
+    renderExpression(result) {
+      const ctx = this.$refs.canvas.getContext('2d');
+      const box = result.detection.box;
+      const fontsize = Math.max(box.width, box.height);
+      ctx.font = fontsize + "px serif";
+      ctx.fillStyle = "white";
+      const x = box.x + ((box.width - fontsize) / 2);
+      const y = box.y + fontsize - 50;
+//      const y = box.y + box.height + ((fontsize - box.height) / 2);
+      const emoji = this.expression2emoji(result.expressions);
+      ctx.fillText(emoji, x, y);
+      
+    },
+    expression2emoji(expressions) {
+      const expression = Object.entries(expressions).reduce((cur, prev) => {
+        return cur[1] < prev[1]? prev : cur;
+      });
+      switch(expression[0]) {
+        case "neutral":
+          return "😶";
+        case "happy":
+          return "😄";
+        case "sad":
+          return "😢";
+        case "angry":
+          return "😠";
+        case "fearful":
+          return "😨";
+        case "disgusted":
+          return "😩";
+        case "surprised":
+          return "😲";
+      }
+    },
+    clearCanvas() {
+      this.$refs.canvas.getContext('2d').clearRect(0, 0, this.videoSize.width, this.videoSize.height);
     }
   },
+  
 }
 </script>
 
