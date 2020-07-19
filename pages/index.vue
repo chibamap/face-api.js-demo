@@ -8,10 +8,11 @@
 import * as faceapi from 'face-api.js'
 
 const MODEL_URL = '/models'
-const interval = 500;
+  , interval = 200
 
 let prevDetections = null
   , notDetectedCount = 0
+  , timer = null
 
 export default {
   data: () => {
@@ -49,47 +50,46 @@ export default {
       });
     },
     startVideo() {
-      navigator.getUserMedia(
-        { video: {} },
-        stream => this.$refs.video.srcObject = stream,
-        err => console.error(err)
+      navigator.mediaDevices.getUserMedia(
+        { video: this.videoSize, audio: false }
       )
+      .then(stream => this.$refs.video.srcObject = stream)
+      .catch(err => console.error(err))
     },
     onVideoPlay() {
       const canvas = this.$refs.canvas;
       faceapi.matchDimensions(canvas, this.videoSize);
-      setInterval(this.faceDetect, interval);
+      if (timer) {
+        clearInterval(timer);
+      }
+      timer = setInterval(this.faceDetect, interval);
     },
     async faceDetect() {
-      let detections = null;
+      let results = null;
       try {
-        detections = await faceapi.detectAllFaces(
+        results = await faceapi.detectAllFaces(
             this.$refs.video,
             new faceapi.TinyFaceDetectorOptions())
           .withFaceExpressions();
-
       } catch (e) {
         console.log(e);
       }
 
-      if (!detections || !detections.length) {
-        console.log('not detected');
+      if (!results || !results.length) {
         notDetectedCount ++;
         if (5000 < interval * notDetectedCount) {
           this.clearCanvas();
         }
         return;
       }
-      this.renderDetection(detections);
-
+      this.renderDetection(results);
     },
-    renderDetection(detections) {
+    renderDetection(results) {
       const canvas = this.$refs.canvas;
-      const resizedDetections = faceapi.resizeResults(detections, this.videoSize);
+      const resizedResults = faceapi.resizeResults(results, this.videoSize);
       this.clearCanvas();
-      resizedDetections.map((detection) => {
-        console.log(detection);
-        this.renderExpression(detection);
+      resizedResults.map((result) => {
+        this.renderExpression(result);
       });
     },
     renderExpression(result) {
@@ -100,18 +100,14 @@ export default {
       ctx.fillStyle = "white";
       const x = box.x + ((box.width - fontsize) / 2);
       const y = box.y + fontsize - 50;
-//      const y = box.y + box.height + ((fontsize - box.height) / 2);
       const emoji = this.expression2emoji(result.expressions);
       ctx.fillText(emoji, x, y);
-      
     },
     expression2emoji(expressions) {
       const expression = Object.entries(expressions).reduce((cur, prev) => {
         return cur[1] < prev[1]? prev : cur;
       });
       switch(expression[0]) {
-        case "neutral":
-          return "😶";
         case "happy":
           return "😄";
         case "sad":
@@ -124,6 +120,9 @@ export default {
           return "😩";
         case "surprised":
           return "😲";
+        case "neutral":
+        default:
+          return "😶";
       }
     },
     clearCanvas() {
