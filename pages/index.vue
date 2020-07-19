@@ -7,7 +7,7 @@
 <script>
 import * as faceapi from 'face-api.js'
 
-const MODEL_URL = '/models'
+const modelPath = 'models'
   , interval = 200
 
 let prevDetections = null
@@ -33,11 +33,12 @@ export default {
   },
   methods: {
     loadModels() {
+      const modelUrl = this.$root.$router.options.base + modelPath;
       return Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-        faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+        faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+        faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+        faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
+        faceapi.nets.faceExpressionNet.loadFromUri(modelUrl),
       ]);
     },
     askUserToStart() {

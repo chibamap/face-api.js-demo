@@ -4,6 +4,9 @@ export default {
    ** See https://nuxtjs.org/api/configuration-mode
    */
   mode: 'spa',
+  router: {
+    base: '/playground/faceapijs/'
+  },
   /*
    ** Nuxt target
    ** See https://nuxtjs.org/api/configuration-target
@@ -66,5 +69,7 @@ export default {
    ** Build configuration
    ** See https://nuxtjs.org/api/configuration-build/
    */
-  build: {},
+  build: {
+    target: 'node'
+  }
 }
